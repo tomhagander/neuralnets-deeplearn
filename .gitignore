@@ -176,3 +176,5 @@ cython_debug/
 #My own stuff
 *.pdf
 *.png
+
+hw2_Questions/code/cifar-10-batches-py/*
