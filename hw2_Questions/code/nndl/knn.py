@@ -61,23 +61,13 @@ class KNN(object):
     num_train = self.X_train.shape[0]
     dists = np.zeros((num_test, num_train))
 
-    # ================================================================ #
-    # YOUR CODE HERE:
-    #   Compute the L2 distance between the ith test point and the jth       
-    #   training point and store the result in dists[i, j].  You may 
-    #   NOT use a for loop (or list comprehension).  You may only use
-    #   numpy operations.
-    #
-    #   HINT: use broadcasting.  If you have a shape (N,1) array and
-    #   a shape (M,) array, adding them together produces a shape (N, M) 
-    #   array.
-    # ================================================================ #
-
-    pass
-
-    # ================================================================ #
-    # END YOUR CODE HERE
-    # ================================================================ #
+  
+    x2 = np.sum(X**2, axis=1)
+    y2 = np.sum(self.X_train**2, axis=1)
+    xy = np.matmul(X, self.X_train.T)
+    x2 = x2.reshape(-1, 1)
+    dists = x2 - 2*xy + y2
+    dists = np.sqrt(dists)
 
     return dists
 
@@ -100,22 +90,10 @@ class KNN(object):
     for i in np.arange(num_test):
       # A list of length k storing the labels of the k nearest neighbors to
       # the ith test point.
-      closest_y = []
-      # ================================================================ #
-      # YOUR CODE HERE:
-      #   Use the distances to calculate and then store the labels of 
-      #   the k-nearest neighbors to the ith test point.  The function
-      #   numpy.argsort may be useful.
-      #   
-      #   After doing this, find the most common label of the k-nearest
-      #   neighbors.  Store the predicted label of the ith training example
-      #   as y_pred[i].  Break ties by choosing the smaller label.
-      # ================================================================ #
-  
-      pass
 
-      # ================================================================ #
-      # END YOUR CODE HERE
-      # ================================================================ #
+      indices = np.argsort(dists[i])
+      closest_y = self.y_train[indices[0:k]]
+      vals,counts = np.unique(closest_y, return_counts=True)
+      y_pred[i] = vals[np.argmax(counts)]
 
     return y_pred
