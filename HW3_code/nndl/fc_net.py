@@ -47,7 +47,11 @@ class TwoLayerNet(object):
     #   dimensions of W2 should be (hidden_dims, num_classes)
     # ================================================================ #
 
-    pass
+    self.params['W1'] = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dims))
+    self.params['b1'] = np.zeros((hidden_dims,))
+    self.params['W2'] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims, num_classes))
+    self.params['b2'] = np.zeros((num_classes,))
+
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -81,7 +85,13 @@ class TwoLayerNet(object):
     #   you prior implemented.
     # ================================================================ #    
     
-    pass
+    #affine-relu-affine-softmax
+    h1, h1_cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+    scores, scores_cache = affine_forward(h1, self.params['W2'], self.params['b2'])
+    
+
+
+
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -106,7 +116,20 @@ class TwoLayerNet(object):
     #   And be sure to use the layers you prior implemented.
     # ================================================================ #    
     
-    pass
+    N = scores.shape[0]
+    exp_scores = np.exp(scores) # shape = (N, C)
+    sum_class_scores = np.sum(exp_scores, axis = 1, keepdims = 1) # shape = (N, 1)
+    log_exp_scores = np.log(exp_scores[range(N), y]/sum_class_scores) # shape = (N, C)
+    loss = -np.mean(log_exp_scores) + 0.5*self.reg*(np.sum(self.params['W1']*self.params['W1']) + np.sum(self.params['W2']*self.params['W2']))
+
+    dscores = exp_scores/sum_class_scores #(N, C)
+    dscores[range(N), y] -= 1
+    dscores /= N
+
+    dh1, grads['W2'], grads['b2'] = affine_backward(dscores, scores_cache)
+    din, grads['W1'], grads['b1'] = affine_relu_backward(dh1, h1_cache)
+    grads['W1'] += self.reg*self.params['W1']
+    grads['W2'] += self.reg*self.params['W2']
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -170,7 +193,12 @@ class FullyConnectedNet(object):
     #   so that each parameter has mean 0 and standard deviation weight_scale.
     # ================================================================ #
     
-    pass
+    self.params['W0'] = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dims[0]))
+    self.params['b0'] = np.zeros(hidden_dims[0])
+
+    for i in range(1, len(hidden_dims)):
+      self.params['W{}'.format(i)] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[i-1], hidden_dims[i]))
+      self.params['b{}'.format(i)] = np.zeros(hidden_dims[i])
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -223,8 +251,21 @@ class FullyConnectedNet(object):
     #   Implement the forward pass of the FC net and store the output
     #   scores as the variable "scores".
     # ================================================================ #
+    hs = []
+    caches = []
 
-    pass
+    h1, h1_cache = affine_relu_forward(X, self.params['W0'], self.params['b0'])
+    hs.append(h1)
+    caches.append(h1_cache)
+
+    for i in range(1, self.num_layers-2):
+      h, h_cache = affine_relu_forward(hs[i-1], self.params['W{}'.format(i)], self.params['b{}'.format(i)])
+      hs.append(h)
+      caches.append(h_cache)
+
+    scores, scores_cache = affine_forward(hs[-1], self.params['W{}'.format(self.num_layers-2)], self.params['b{}'.format(self.num_layers-2)])
+    hs.append(scores)
+    caches.append(scores_cache)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -242,7 +283,28 @@ class FullyConnectedNet(object):
     #   Be sure your L2 regularization includes a 0.5 factor.
     # ================================================================ #
 
-    pass
+    N = scores.shape[0]
+    exp_scores = np.exp(scores) # shape = (N, C)
+    sum_class_scores = np.sum(exp_scores, axis = 1, keepdims = 1) # shape = (N, 1)
+    log_exp_scores = np.log(exp_scores[range(N), y]/sum_class_scores) # shape = (N, C)
+    loss = -np.mean(log_exp_scores)
+    for i in range(self.num_layers-1):
+      loss += 0.5*self.reg*(np.sum(self.params['W{}'.format(i)]*self.params['W{}'.format(i)]))
+
+    dscores = exp_scores/sum_class_scores #(N, C)
+    dscores[range(N), y] -= 1
+    dscores /= N
+
+    dh_last, grads['W{}'.format(self.num_layers-2)], grads['b{}'.format(self.num_layers-2)] = affine_backward(dscores, scores_cache)
+    dhs = []
+    dhs.append(dh_last)
+
+    for i in range(1, self.num_layers-1):
+      dhi, grads['W{}'.format(i-1)], grads['b{}'.format(i-1)] = affine_relu_backward(dhs[i-1], caches[-i-1])
+      dhs.append(dhi)
+
+    for i in range(self.num_layers-1):
+      grads['W{}'.format(i)] += self.reg*self.params['W{}'.format(i)]
 
     # ================================================================ #
     # END YOUR CODE HERE
