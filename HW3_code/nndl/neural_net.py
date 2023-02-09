@@ -127,35 +127,21 @@ class TwoLayerNet(object):
     # ================================================================ #
 
     C, H = W2.shape #C,D
-    '''
-    Ys = np.tile(y, (H,1))
-    indices = np.vstack([np.arange(H),]*D).T
-    indicator = np.equal(Ys, indices).astype(int)
-    coeff = np.divide(np.exp(scores), np.sum(np.exp(scores), axis=0))
 
-    grads['W2'] = ((coeff.T - indicator).dot(relued.T) + b2.reshape(-1, 1))/N + reg*W2
-    # det är nog inte reg! För litet
-    # Indicator slår endast vissa index så det lär vara coeff som är fel.
-    # AHHH WTF 
-    # kanske torcha allt och göra rätt. Godnatt
-    '''
+    exp_scores = np.exp(scores) # shape = (N, C)
+    sum_class_scores = np.sum(exp_scores, axis = 1, keepdims = 1) # shape = (N, 1)
 
-    #b2
-    ctr = np.bincount(y)
-    term2 = np.sum(np.divide(np.exp(scores.T), np.sum(np.exp(scores.T), axis=0)), axis=1)
-    grads['b2'] = (1/N)*(term2 - ctr)
+    dscores = exp_scores/sum_class_scores #(N, C)
+    dscores[range(N), y] -= 1
+    dscores /= N
 
-    #w2
-    Ys = np.tile(y, (C,1))
-    indices = np.vstack([np.arange(C),]*N).T
-    indicator = np.equal(Ys, indices).astype(int)
+    grads['W2'] = np.dot(dscores.T, relued.T)+ reg*W2
+    grads['b2'] = np.sum(dscores, axis = 0)
 
-    coeff = np.divide(np.exp(scores.T), np.sum(np.exp(scores.T), axis=0))
-
-    w2t1 = -(1/N)*indicator.dot(relued.T)
-    w2t2 = (1/N)*coeff.dot(relued.T)
-    w2reg = reg*W2
-    grads['W2'] = w2t1 + w2t2 + w2reg
+    dloss_h1 = np.dot(dscores, W2)
+    dloss_h1[relued.T<=0] = 0
+    grads['W1'] = np.dot(dloss_h1.T, X) + reg*W1
+    grads['b1'] = np.sum(dloss_h1, axis = 0)
 
 
     # ================================================================ #
@@ -201,7 +187,9 @@ class TwoLayerNet(object):
       # YOUR CODE HERE:
       #   Create a minibatch by sampling batch_size samples randomly.
       # ================================================================ #
-      pass
+      indices = np.random.choice(np.arange(len(y)), batch_size)
+      X_batch = X[indices]
+      y_batch = y[indices]
 
       # ================================================================ #
       # END YOUR CODE HERE
@@ -217,7 +205,10 @@ class TwoLayerNet(object):
       #   all parameters (i.e., W1, W2, b1, and b2).
       # ================================================================ #
 
-      pass
+      self.params['W1'] -= learning_rate*grads['W1']
+      self.params['b1'] -= learning_rate*grads['b1']
+      self.params['W2'] -= learning_rate*grads['W2']
+      self.params['b2'] -= learning_rate*grads['b2']
 
       # ================================================================ #
       # END YOUR CODE HERE
@@ -264,8 +255,8 @@ class TwoLayerNet(object):
     # YOUR CODE HERE:
     #   Predict the class given the input data.
     # ================================================================ #
-    pass
-
+    scores = self.loss(X)
+    y_pred = np.argmax(scores, axis=1).astype(int)
 
     # ================================================================ #
     # END YOUR CODE HERE
