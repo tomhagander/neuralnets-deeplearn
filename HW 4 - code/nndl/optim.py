@@ -66,6 +66,10 @@ def sgd_momentum(w, dw, config=None):
     #   as next_w, and the updated velocity as v.
     # ================================================================ #
     
+    v = config['momentum']*v - config['learning_rate']*dw
+
+    next_w = w + v
+
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -95,6 +99,10 @@ def sgd_nesterov_momentum(w, dw, config=None):
     #   Implement the momentum update formula.  Return the updated weights
     #   as next_w, and the updated velocity as v.
     # ================================================================ #
+
+    v_old = v
+    v = config['momentum']*v - config['learning_rate']*dw
+    next_w = w + v + config['momentum']*(v-v_old)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -131,6 +139,13 @@ def rmsprop(w, dw, config=None):
     #   moment gradients, so they can be used for future gradients. Concretely,
     #   config['a'] corresponds to "a" in the lecture notes.
     # ================================================================ #
+    a = config['a']
+
+    a = config['decay_rate']*a + (1-config['decay_rate'])*np.square(dw)
+    next_w = w - config['learning_rate']*dw/(np.sqrt(a) + config['epsilon'])
+
+
+    config['a'] = a
 
     # ================================================================ #
     # END YOUR CODE HERE
