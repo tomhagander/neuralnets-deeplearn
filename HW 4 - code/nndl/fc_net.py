@@ -170,6 +170,14 @@ class FullyConnectedNet(object):
     self.params['W0'] = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dims[0]))
     self.params['b0'] = np.zeros(hidden_dims[0])
 
+    if self.use_batchnorm:
+      self.params['gamma0'] = np.ones(hidden_dims[0])
+      self.params['beta0'] = np.zeros(hidden_dims[0])
+
+      for i in range(1, len(hidden_dims)-1):
+        self.params['gamma{}'.format(i)] = np.ones(hidden_dims[i])
+        self.params['beta{}'.format(i)] = np.zeros(hidden_dims[i])
+
     for i in range(1, len(hidden_dims)):
       self.params['W{}'.format(i)] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[i-1], hidden_dims[i]))
       self.params['b{}'.format(i)] = np.zeros(hidden_dims[i])
@@ -227,19 +235,35 @@ class FullyConnectedNet(object):
     # ================================================================ #
     hs = []
     caches = []
+    drop_caches = []
+    
+    if self.use_batchnorm:
+      h1, h1_cache = affine_batchnorm_relu_forward(X, self.params['W0'], self.params['b0'], self.params['gamma0'], self.params['beta0'], self.bn_params[0])
+    else:
+      h1, h1_cache = affine_relu_forward(X, self.params['W0'], self.params['b0'])
+    if self.use_dropout:
+      h1, drop_cache = dropout_forward(h1, self.dropout_param)
 
-    h1, h1_cache = affine_relu_forward(X, self.params['W0'], self.params['b0'])
+
     hs.append(h1)
     caches.append(h1_cache)
+    drop_caches.append(drop_cache)
 
     for i in range(1, self.num_layers-2):
-      h, h_cache = affine_relu_forward(hs[i-1], self.params['W{}'.format(i)], self.params['b{}'.format(i)])
+      if self.use_batchnorm:
+        h, h_cache = affine_batchnorm_relu_forward(hs[i-1], self.params['W{}'.format(i)], self.params['b{}'.format(i)], self.params['gamma{}'.format(i)], self.params['beta{}'.format(i)], self.bn_params[i])
+      else:
+        h, h_cache = affine_relu_forward(hs[i-1], self.params['W{}'.format(i)], self.params['b{}'.format(i)])
+      if self.use_dropout:
+        h, drop_cache = dropout_forward(h, self.dropout_param)
       hs.append(h)
       caches.append(h_cache)
+      drop_caches.append(drop_cache)
 
     scores, scores_cache = affine_forward(hs[-1], self.params['W{}'.format(self.num_layers-2)], self.params['b{}'.format(self.num_layers-2)])
     hs.append(scores)
     caches.append(scores_cache)
+    drop_caches.append(None)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -274,8 +298,16 @@ class FullyConnectedNet(object):
     dhs.append(dh_last)
 
     for i in range(1, self.num_layers-1):
-      print(i)
-      dhi, grads['W{}'.format(self.num_layers-i-2)], grads['b{}'.format(self.num_layers-i-2)] = affine_relu_backward(dhs[i-1], caches[-i-1])
+      if self.use_batchnorm:
+        dhi, grads['W{}'.format(self.num_layers-i-2)], grads['b{}'.format(self.num_layers-i-2)], grads['gamma{}'.format(self.num_layers-i-2)], grads['beta{}'.format(self.num_layers-i-2)] = affine_batchnorm_relu_backward(dhs[i-1], caches[-i-1])
+      else:
+        dhi, grads['W{}'.format(self.num_layers-i-2)], grads['b{}'.format(self.num_layers-i-2)] = affine_relu_backward(dhs[i-1], caches[-i-1])
+      if self.use_dropout:
+        print(dhi.shape)
+        for e in drop_caches:
+          _, mask = e
+          print(mask.shape)
+        dhi = dropout_backward(dhi, drop_caches[-i-1])
       dhs.append(dhi)
 
     for i in range(self.num_layers-1):
